@@ -1,32 +1,34 @@
-from __future__ import (absolute_import, print_function)
-
-# From system
+import os
 from collections import defaultdict
+
 from fabric.api import env
 import logging
 
-# From package
-from .snapshotting import (BackupWorker, RestoreWorker,
-                           Snapshot, SnapshotCollection)
-from .utils import (add_s3_arguments, get_s3_connection_host)
-from .utils import base_parser as _base_parser
+from cassandra_snapshotter.snapshotting import (SnapshotCollection,
+                                                BackupWorker,
+                                                Snapshot,
+                                                RestoreWorker)
+from utils import get_s3_connection_host, add_s3_arguments, base_parser
 
 env.use_ssh_config = True
 
 
-def run_backup(args):
+def _set_user_env_vars(args):
     if args.user:
         env.user = args.user
-
+    if args.sudo_user:
+        env.sudo_user = args.sudo_user
     if args.password:
         env.password = args.password
-
     if args.sshkey:
         env.key_filename = args.sshkey
-
     if args.sshport:
         env.port = args.sshport
 
+
+def run_backup(args):
+
+    _set_user_env_vars(args)
     env.hosts = args.hosts.split(',')
     env.keyspaces = args.keyspaces.split(',') if args.keyspaces else None
 
@@ -42,7 +44,8 @@ def run_backup(args):
         ).get_snapshot_for(
             hosts=env.hosts,
             keyspaces=env.keyspaces,
-            table=args.table
+            table=args.table,
+            name=Snapshot.make_snapshot_name()
         )
         create_snapshot = existing_snapshot is None
 
@@ -53,8 +56,7 @@ def run_backup(args):
         s3_ssenc=args.s3_ssenc,
         s3_connection_host=get_s3_connection_host(args.s3_bucket_region),
         cassandra_conf_path=args.cassandra_conf_path,
-        nodetool_path=args.nodetool_path,
-        cassandra_bin_dir=args.cassandra_bin_dir,
+        cassandra_tools_bin_dir=args.cassandra_tools_bin_dir,
         cqlsh_user=args.cqlsh_user,
         cqlsh_password=args.cqlsh_password,
         backup_schema=args.backup_schema,
@@ -66,7 +68,6 @@ def run_backup(args):
         rate_limit=args.rate_limit,
         quiet=args.quiet
     )
-
     if create_snapshot:
         logging.info("Make a new snapshot")
         snapshot = Snapshot(
@@ -94,11 +95,10 @@ def list_backups(args):
     path_snapshots = defaultdict(list)
 
     for snapshot in snapshots:
-        base_path = '/'.join(snapshot.base_path.split('/')[:-1])
+        base_path = os.path.join(snapshot.base_path.split('/')[:-1])
         path_snapshots[base_path].append(snapshot)
 
     for path, snapshots in path_snapshots.iteritems():
-        print("-----------[{!s}]-----------".format(path))
         for snapshot in snapshots:
             print("\t {!r} hosts:{!r} keyspaces:{!r} table:{!r}".format(
                 snapshot, snapshot.hosts, snapshot.keyspaces, snapshot.table))
@@ -106,6 +106,10 @@ def list_backups(args):
 
 
 def restore_backup(args):
+
+    _set_user_env_vars(args)
+    env.host_string = args.host
+
     snapshots = SnapshotCollection(
         args.aws_access_key_id,
         args.aws_secret_access_key,
@@ -121,23 +125,18 @@ def restore_backup(args):
 
     worker = RestoreWorker(aws_access_key_id=args.aws_access_key_id,
                            aws_secret_access_key=args.aws_secret_access_key,
+                           s3_bucket_region=args.s3_bucket_region,
                            snapshot=snapshot,
-                           cassandra_bin_dir=args.cassandra_bin_dir,
-                           cassandra_data_dir=args.cassandra_data_dir)
+                           cassandra_tools_bin_dir=args.cassandra_tools_bin_dir,
+                           restore_dir=args.restore_dir,
+                           use_sudo=args.use_sudo)
 
-    if args.hosts:
-        hosts = args.hosts.split(',')
-    else:
-        hosts = snapshot.hosts
-
-    target_hosts = args.target_hosts.split(',')
-
-    worker.restore(args.keyspace, args.table, hosts, target_hosts)
+    worker.restore(args.keyspace)
 
 
 def main():
-    base_parser = add_s3_arguments(_base_parser)
-    subparsers = base_parser.add_subparsers(
+    a_base_parser = add_s3_arguments(base_parser)
+    subparsers = a_base_parser.add_subparsers(
         title='subcommands', dest='subcommand'
     )
 
@@ -173,18 +172,13 @@ def main():
 
     backup_parser.add_argument(
         '--cassandra-conf-path',
-        default='/etc/cassandra/conf/',
+        default='/etc/cassandra/',
         help="cassandra config file path")
 
     backup_parser.add_argument(
-        '--nodetool-path',
-        default=None,
-        help="nodetool path")
-
-    backup_parser.add_argument(
-        '--cassandra-bin-dir',
+        '--cassandra-tools-bin-dir',
         default='/usr/bin',
-        help="cassandra binaries directory")
+        help="binary directory for nodetool, cqlsh and sstableloader")
 
     backup_parser.add_argument(
         '--user',
@@ -194,6 +188,11 @@ def main():
         '--use-sudo',
         default=False,
         help="Use sudo to run backup")
+
+    backup_parser.add_argument(
+        '--sudo-user',
+        default=None,
+        help="Run sudo as an user other than the default (root)")
 
     backup_parser.add_argument(
         '--sshport',
@@ -256,8 +255,7 @@ def main():
     restore_parser.add_argument(
         '--snapshot-name',
         default='LATEST',
-        help="The name (date/time) \
-            of the snapshot (and incrementals) to restore")
+        help="The name of the snapshot (and incremental backups) to restore")
 
     restore_parser.add_argument(
         '--keyspace',
@@ -265,32 +263,48 @@ def main():
         help="The keyspace to restore")
 
     restore_parser.add_argument(
-        '--table',
-        default='',
-        help="The table (column family) to restore; leave blank for all")
+        '--user',
+        help="The ssh user to logging on nodes")
 
     restore_parser.add_argument(
-        '--hosts',
-        default='',
-        help="Comma separated list of \
-            hosts to restore from; leave empty for all")
+        '--use-sudo',
+        default=False,
+        help="Use sudo to restore the backup")
 
     restore_parser.add_argument(
-        '--target-hosts',
+        '--sudo-user',
+        default=None,
+        help="Run sudo as an user other than the default (root)")
+
+    restore_parser.add_argument(
+        '--sshport',
+        help="The ssh port to use to connect to the nodes")
+
+    restore_parser.add_argument(
+        '--password',
+        default='',
+        help="User password to connect with hosts")
+
+    restore_parser.add_argument(
+        '--sshkey',
+        help="The file containing the private ssh key to use to connect with hosts")
+
+    restore_parser.add_argument(
+        '--host',
         required=True,
-        help="The comma separated list of hosts to restore into")
+        help="Cassandra host to restore into")
 
     restore_parser.add_argument(
-        '--cassandra-bin-dir',
+        '--cassandra-tools-bin-dir',
         default='/usr/bin',
-        help="cassandra binaries directory")
+        help="binary directory for nodetool, cqlsh and sstableloader")
 
     restore_parser.add_argument(
-        '--cassandra-data-dir',
-        default='/usr/local/cassandra/data',
-        help="cassandra data directory")
+        '--restore-dir',
+        default='/tmp/cassandra_restore',
+        help="directory to recover the backup to")
 
-    args = base_parser.parse_args()
+    args = a_base_parser.parse_args()
     subcommand = args.subcommand
 
     if args.verbose:

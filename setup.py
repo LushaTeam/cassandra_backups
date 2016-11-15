@@ -38,4 +38,5 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
+    keywords=['cassandra', 'AWS', 'S3', 'backup']
 )

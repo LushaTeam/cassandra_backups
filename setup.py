@@ -14,6 +14,8 @@ install_requires = [
 setup(
     name='cassandra_backups',
     version=__version__,
+    maintainer='Juan Alvarez',
+    maintainer_email='juan@opbeat.com',
     url='http://github.com/jalvz/cassandra_backups',
     description='cassandra_backups is a tool to backup a Cassandra cluster to Amazon S3.',
     packages=find_packages(),

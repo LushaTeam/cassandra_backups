@@ -20,11 +20,11 @@ import logging
 import multiprocessing
 from multiprocessing.dummy import Pool
 
-from cassandra_snapshotter import logging_helper
-from cassandra_snapshotter.utils import (add_s3_arguments, base_parser,
-                                         map_wrap, get_s3_connection_host,
-                                         check_lzop, check_pv, compressed_pipe,
-                                         decompression_pipe)
+from cassandra_backups import logging_helper
+from cassandra_backups.utils import (add_s3_arguments, base_parser,
+                                     map_wrap, get_s3_connection_host,
+                                     check_lzop, check_pv, compressed_pipe,
+                                     decompression_pipe)
 
 DEFAULT_CONCURRENCY = max(multiprocessing.cpu_count() - 1, 1)
 BUFFER_SIZE = 64  # Default bufsize is 64M
@@ -38,7 +38,7 @@ DEFAULT_REDUCED_REDUNDANCY = False
 logging_helper.configure(
     format='%(name)-12s %(levelname)-8s %(message)s')
 
-logger = logging_helper.CassandraSnapshotterLogger('cassandra_snapshotter.agent')
+logger = logging_helper.CassandraSnapshotterLogger('cassandra_backups.agent')
 boto.set_stream_logger('boto', logging.WARNING)
 
 

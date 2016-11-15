@@ -11,14 +11,14 @@ from datetime import datetime
 from fabric.api import (env, execute, hide, run, sudo)
 from fabric.context_managers import settings
 
-from cassandra_snapshotter.utils import get_s3_connection_host
+from cassandra_backups.utils import get_s3_connection_host
 
 
 class Snapshot(object):
     """
     A Snapshot instance keeps the details about a cassandra snapshot
 
-    Multiple snaphosts can be stored in a single S3 bucket
+    Multiple snapshots can be stored in a single S3 bucket
 
     A Snapshot is best described by:
         - its name (which defaults to the utc time of creation)

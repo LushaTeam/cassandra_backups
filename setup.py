@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
-from cassandra_snapshotter import __version__, __maintainer__, __email__
+from cassandra_backups import __version__
 
 
 install_requires = [
@@ -12,20 +12,18 @@ install_requires = [
 ]
 
 setup(
-    name='cassandra_snapshotter',
+    name='cassandra_backups',
     version=__version__,
-    author=__maintainer__,
-    author_email=__email__,
-    url='http://github.com/tbarbugli/cassandra_snapshotter',
-    description='Cassandra snapshotter is a tool to backup cassandra to Amazon S3.',
+    url='http://github.com/jalvz/cassandra_backups',
+    description='cassandra_backups is a tool to backup a Cassandra cluster to Amazon S3.',
     packages=find_packages(),
     zip_safe=False,
     install_requires=install_requires,
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'cassandra-snapshotter = cassandra_snapshotter.main:main',
-            'cassandra-snapshotter-agent = cassandra_snapshotter.agent:main'
+            'cassandra-backups = cassandra_backups.main:main',
+            'cassandra-backups-agent = cassandra_backups.agent:main'
         ]
     },
     classifiers=[
@@ -33,11 +31,9 @@ setup(
         'Intended Audience :: System Administrators',
         'Operating System :: OS Independent',
         'Topic :: Software Development',
-        'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: GNU General Public License (GPL)',
         'Natural Language :: English',
         'Programming Language :: Python',
-        'Topic :: Scientific/Engineering :: Mathematics',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
 )

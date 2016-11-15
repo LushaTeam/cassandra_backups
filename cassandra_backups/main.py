@@ -4,10 +4,10 @@ from collections import defaultdict
 from fabric.api import env
 import logging
 
-from cassandra_snapshotter.snapshotting import (SnapshotCollection,
-                                                BackupWorker,
-                                                Snapshot,
-                                                RestoreWorker)
+from cassandra_backups.snapshotting import (SnapshotCollection,
+                                            BackupWorker,
+                                            Snapshot,
+                                            RestoreWorker)
 from utils import get_s3_connection_host, add_s3_arguments, base_parser
 
 env.use_ssh_config = True

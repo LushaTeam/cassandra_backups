@@ -106,7 +106,7 @@ class RestoreWorker(object):
         logging.info("Restoring keyspace=%(keyspace)s to host %(host)s ,\
             " % dict(keyspace=keyspace, host=env.host_string))
 
-        restore_command = "cassandra-snapshotter-agent " \
+        restore_command = "cassandra-backups-agent " \
                           "fetch " \
                           "--keyspace=%(keyspace)s " \
                           "--snapshot-path=%(snapshot_path)s " \
@@ -190,7 +190,7 @@ class BackupWorker(object):
         prefix = '/'.join(snapshot.base_path.split('/') + [self.get_current_node_hostname()])
 
         manifest_path = '/tmp/backupmanifest'
-        manifest_command = "cassandra-snapshotter-agent " \
+        manifest_command = "cassandra-backups-agent " \
                            "%(incremental_backups)s create-upload-manifest " \
                            "--manifest_path=%(manifest_path)s " \
                            "--snapshot_name=%(snapshot_name)s " \
@@ -213,7 +213,7 @@ class BackupWorker(object):
         else:
             run(cmd)
 
-        upload_command = "cassandra-snapshotter-agent %(incremental_backups)s " \
+        upload_command = "cassandra-backups-agent %(incremental_backups)s " \
                          "put " \
                          "--s3-bucket-name=%(bucket)s " \
                          "--s3-bucket-region=%(s3_bucket_region)s %(s3_ssenc)s " \

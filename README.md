@@ -4,10 +4,6 @@ incremental backups on S3.
 The scope of this project is to make it easier to backup a cluster to S3 and to combine
 snapshots and incremental backups.
 
-
-Differences with `tbarbugli/cassandra_snapshotter`
-==================================================
-
 This is a fork of https://github.com/tbarbugli/cassandra_snapshotter 
 Some differences with the original, as of 11/2016:
  
@@ -69,6 +65,9 @@ the Cassandra nodes.
 
 You also need `lzop`. On Debian/Ubuntu: 
 `sudo apt-get install lzop`
+
+Other dependencies that you might not have:
+`sudo apt-get install libffi-dev g++ libssl-dev libyaml-dev libpython2.7-dev`
 
   
 Usage Examples

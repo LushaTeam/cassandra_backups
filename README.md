@@ -36,9 +36,6 @@ Limitations and Recommendations
 * Backup / Restore a multi-node cluster with this and the "Node Restart Method" generally works,
 but many options are untested (eg: operations scoped to a single column family).
     
-* The restore command doesn't get along with empty folders and/or files, causing decompression 
-to fail with some ugly errors. Always check `stdout` even if it looks like all went well.
-
 * It is possible to backup all keyspaces at once, but restore has to be done one by one.
 
 * Likewise, it is possible to backup from several host with a single command, but to restore 
@@ -106,6 +103,9 @@ cassandra-backups
     --use-sudo=true 
     --sudo-user=cassandra
 ```
+
+
+If you want incremental backups, remember to set the flag in the `cassandra.yaml` config file.
 
 
 The Node Restart Method

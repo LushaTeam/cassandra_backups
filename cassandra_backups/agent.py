@@ -236,32 +236,40 @@ def local_restore(keyspace, snapshot_path, aws_access_key_id, aws_secret_access_
         aws_secret_access_key=aws_secret_access_key,
         host=s3_host)
 
-    keys = []
+    snapshot_keys = [] # baseline
+    backups_keys = []  # incremental
     tables = set()
 
     bucket = s3connection.get_bucket(s3_bucket_name, validate=False)
 
     for k in bucket.list(snapshot_path):
         logging.info(k)
-        logging.info(k.name)
+        # logging.info(k.name)
         r = keyspace_table_matcher.search(k.name)
         if not r:
             continue
 
         tables.add(r.group(3))
-        keys.append(k)
+        if 'backups' in k.name:
+            backups_keys.append(k)
+        if 'snapshots' in k.name:
+            snapshot_keys.append(k)
 
     _delete_old_dir_and_create_new(keyspace_path, tables)
-    total_size = reduce(lambda s, k: s + k.size, keys, 0)
 
-    logging.info("Found %(files_count)d files, with total size \
-        of %(size)s." % dict(files_count=len(keys),
-                             size=_human_size(total_size)))
-    print("Found %(files_count)d files, with total size \
-        of %(size)s." % dict(files_count=len(keys),
-                             size=_human_size(total_size)))
+    snapshots_size = reduce(lambda s, k: s + k.size, snapshot_keys, 0)
+    backups_size = reduce(lambda s, k: s + k.size, backups_keys, 0)
 
-    _download_keys(keys, total_size, restore_dir, keyspace_table_matcher)
+    logging.info("Found %(files_count)d backup files, with total size \
+        of %(size)s." % dict(files_count=len(backups_keys),
+                             size=_human_size(backups_size)))
+    logging.info("Found %(files_count)d snapshot files, with total size \
+        of %(size)s." % dict(files_count=len(snapshot_keys),
+                             size=_human_size(snapshots_size)))
+
+    # order relevant: first backups_keys (more recent), then snapshots_keys (don't override files)
+    _download_keys(backups_keys, backups_size, restore_dir, keyspace_table_matcher)
+    _download_keys(snapshot_keys, snapshots_size, restore_dir, keyspace_table_matcher)
 
     logging.info("Finished downloading...")
 
@@ -452,7 +460,7 @@ def main():
         )
 
     if subcommand == 'fetch':
-        check_lzop()
+        #check_lzop()
         local_restore(args.keyspace,
                       args.snapshot_path,
                       args.aws_access_key_id,
@@ -464,4 +472,4 @@ def main():
                       args.restore_dir)
 
 if __name__ == '__main__':
-    check_lzop()
+    main()

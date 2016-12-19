@@ -18,12 +18,12 @@ Some differences with the original, as of 11/2016:
     * When restoring from multiple nodes, each node fetches the data it uploaded itself.
      Then the "Node Restart Method" can be executed on each node.
 
- * Backups follow a `YearWeeknumber` format instead of timestamp (eg: `201651`).
-    * New directories can be created every week as a result of scheduled backups, so that if (e.g.)
-    data from last week is known to be corrupted, a previous backup can be restored.
-    Within a week, backups after the first one are incremental.
+ * Backups follow a `YearMonthDay` format instead of timestamp.
+    * New directories can be created every day as a result of scheduled backups, so that if (e.g.)
+    data from last day is known to be corrupted, a previous backup can be restored.
+    Within a day, backups after the first one are incremental.
     
-    * It is trivial to change that format to something more convenient (eg daily):
+    * It is trivial to change that format to something more convenient:
     just grep `SNAPSHOT_TIMESTAMP_FORMAT` in the codebase and change the format.
 
  * Added a `user` option for using together with `sudo`, renamed some other options, and changed 

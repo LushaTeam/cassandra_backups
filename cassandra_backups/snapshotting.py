@@ -10,6 +10,7 @@ from boto.exception import S3ResponseError
 from datetime import datetime
 from fabric.api import (env, execute, hide, run, sudo)
 from fabric.context_managers import settings
+from fabric.operations import local
 
 from cassandra_backups.utils import get_s3_connection_host
 
@@ -157,7 +158,7 @@ class BackupWorker(object):
 
     def __init__(self, aws_secret_access_key,
                  aws_access_key_id, s3_bucket_region, s3_ssenc,
-                 s3_connection_host, cassandra_conf_path, use_sudo,
+                 s3_connection_host, cassandra_conf_path, use_sudo, use_local,
                  cassandra_tools_bin_dir, cqlsh_user, cqlsh_password,
                  backup_schema, buffer_size, exclude_tables, rate_limit, quiet,
                  connection_pool_size=12, reduced_redundancy=False):
@@ -181,7 +182,21 @@ class BackupWorker(object):
             self.use_sudo = bool(strtobool(use_sudo))
         else:
             self.use_sudo = use_sudo
+        if isinstance(use_local, basestring):
+            self.use_local = bool(strtobool(use_local))
+        else:
+            self.use_local = use_local
         self.exclude_tables = exclude_tables
+
+    def execute_cmd(self, cmd):
+        if self.use_local and self.use_sudo:
+            return local('sudo ' + cmd)
+        elif self.use_local:
+            return local(cmd)
+        elif self.use_sudo:
+            return sudo(cmd)
+        else:
+            return run(cmd)
 
     def get_current_node_hostname(self):
         return env.host_string
@@ -208,10 +223,7 @@ class BackupWorker(object):
             incremental_backups=incremental_backups and '--incremental_backups' or ''
         )
 
-        if self.use_sudo:
-            sudo(cmd)
-        else:
-            run(cmd)
+        self.execute_cmd(cmd)
 
         upload_command = "cassandra-backups-agent %(incremental_backups)s " \
                          "put " \
@@ -248,10 +260,7 @@ class BackupWorker(object):
             incremental_backups=incremental_backups and '--incremental_backups' or ''
         )
 
-        if self.use_sudo:
-            sudo(cmd)
-        else:
-            run(cmd)
+        self.execute_cmd(cmd)
 
     def snapshot(self, snapshot):
         """
@@ -280,10 +289,7 @@ class BackupWorker(object):
     def get_ring_description(self):
         with settings(host_string=env.hosts[0]):
             with hide('output'):
-                if self.use_sudo:
-                    ring_description = sudo(self.nodetool_path + ' ring')
-                else:
-                    ring_description = run(self.nodetool_path + ' ring')
+                ring_description = self.execute_cmd(self.nodetool_path + ' ring')
         return ring_description
 
     def get_keyspace_schema(self, keyspace=None):
@@ -298,10 +304,7 @@ class BackupWorker(object):
                 if keyspace:
                     cmd = "{!s} -k {!s} {!s} -e 'DESCRIBE KEYSPACE {!s};'".format(
                         self.cqlsh_path, keyspace, auth, keyspace)
-                if self.use_sudo:
-                    output = sudo(cmd)
-                else:
-                    output = run(cmd)
+                output = self.execute_cmd(cmd)
         return output
 
     def write_on_S3(self, bucket_name, path, content):
@@ -346,12 +349,9 @@ class BackupWorker(object):
     def node_start_backup(self, snapshot, incremental_backups):
         """Runs snapshot command on a cassandra node"""
 
-        def run_cmd(cmd):
+        def hide_exec_cmd(cmd):
             with hide('running', 'stdout', 'stderr'):
-                if self.use_sudo:
-                    sudo(cmd)
-                else:
-                    run(cmd)
+                self.execute_cmd(cmd)
 
         if incremental_backups:
             backup_command = "%(nodetool)s flush %(keyspace)s %(tables)s"
@@ -364,7 +364,7 @@ class BackupWorker(object):
                         keyspace=keyspace,
                         tables=snapshot.table or ''
                     )
-                    run_cmd(cmd)
+                    hide_exec_cmd(cmd)
             else:
                 # If no keyspace then can't provide a table either.
                 cmd = backup_command % dict(
@@ -372,7 +372,7 @@ class BackupWorker(object):
                     keyspace='',
                     tables=''
                 )
-                run_cmd(cmd)
+                hide_exec_cmd(cmd)
 
         else:
             backup_command = "%(nodetool)s snapshot %(table_param)s \
@@ -388,7 +388,7 @@ class BackupWorker(object):
                         snapshot=snapshot.name,
                         keyspaces=keyspace
                     )
-                    run_cmd(cmd)
+                    hide_exec_cmd(cmd)
             else:
                 cmd = backup_command % dict(
                     nodetool=self.nodetool_path,
@@ -396,7 +396,7 @@ class BackupWorker(object):
                     snapshot=snapshot.name,
                     keyspaces=' '.join(snapshot.keyspaces or '')
                 )
-                run_cmd(cmd)
+                hide_exec_cmd(cmd)
 
     def upload_cluster_backups(self, snapshot, incremental_backups):
         logging.info("Uploading backups")
@@ -415,10 +415,7 @@ class BackupWorker(object):
             nodetool=self.nodetool_path,
             snapshot=snapshot.name
         )
-        if self.use_sudo:
-            sudo(cmd)
-        else:
-            run(cmd)
+        self.execute_cmd(cmd)
 
 
 class SnapshotCollection(object):

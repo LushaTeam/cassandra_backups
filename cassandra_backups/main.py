@@ -62,6 +62,7 @@ def run_backup(args):
         backup_schema=args.backup_schema,
         buffer_size=args.buffer_size,
         use_sudo=args.use_sudo,
+        use_local=args.use_local,
         connection_pool_size=args.connection_pool_size,
         exclude_tables=args.exclude_tables,
         reduced_redundancy=args.reduced_redundancy,
@@ -158,7 +159,7 @@ def main():
     backup_parser.add_argument(
         '--hosts',
         required=True,
-        help="Comma separated list of hosts to snapshot")
+        help="Comma separated list of hosts to snapshot (only one with --use-local)")
 
     backup_parser.add_argument(
         '--keyspaces',
@@ -188,6 +189,12 @@ def main():
         '--use-sudo',
         default=False,
         help="Use sudo to run backup")
+
+    backup_parser.add_argument(
+        '--use-local',
+        default=False,
+        help="Run the backup locally. If so, `hosts` must be one string determining the folder to backup into S3, "
+             "so it can be differentiated from other nodes backups")
 
     backup_parser.add_argument(
         '--sudo-user',

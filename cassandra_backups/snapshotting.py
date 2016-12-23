@@ -12,7 +12,7 @@ from fabric.api import (env, execute, hide, run, sudo)
 from fabric.context_managers import settings
 from fabric.operations import local
 
-from cassandra_backups.utils import get_s3_connection_host
+from cassandra_backups.utils import get_s3_connection_host, nice_local
 
 
 class Snapshot(object):
@@ -93,7 +93,7 @@ class Snapshot(object):
 
 class RestoreWorker(object):
     def __init__(self, aws_access_key_id, aws_secret_access_key, s3_bucket_region, snapshot,
-                 cassandra_tools_bin_dir, restore_dir, use_sudo):
+                 cassandra_tools_bin_dir, restore_dir, use_sudo, use_local):
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_access_key_id = aws_access_key_id
         self.s3_host = get_s3_connection_host(s3_bucket_region)
@@ -101,6 +101,7 @@ class RestoreWorker(object):
         self.cassandra_tools_bin_dir = cassandra_tools_bin_dir
         self.restore_dir = restore_dir
         self.use_sudo = use_sudo
+        self.use_local = use_local
 
     def restore(self, keyspace):
 
@@ -131,7 +132,11 @@ class RestoreWorker(object):
             restore_dir=self.restore_dir,
         )
 
-        if self.use_sudo:
+        if self.use_local and self.use_sudo:
+            local("sudo " + cmd)
+        elif self.use_local:
+            local(cmd)
+        elif self.use_sudo:
             sudo(cmd)
         else:
             run(cmd)
@@ -160,7 +165,7 @@ class BackupWorker(object):
                  aws_access_key_id, s3_bucket_region, s3_ssenc,
                  s3_connection_host, cassandra_conf_path, use_sudo, use_local,
                  cassandra_tools_bin_dir, cqlsh_user, cqlsh_password,
-                 backup_schema, buffer_size, exclude_tables, rate_limit, quiet,
+                 backup_schema, buffer_size, exclude_tables, rate_limit, quiet, nice,
                  connection_pool_size=12, reduced_redundancy=False):
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_access_key_id = aws_access_key_id
@@ -178,6 +183,7 @@ class BackupWorker(object):
         self.reduced_redundancy = reduced_redundancy
         self.rate_limit = rate_limit
         self.quiet = quiet
+        self.nice = nice
         if isinstance(use_sudo, basestring):
             self.use_sudo = bool(strtobool(use_sudo))
         else:
@@ -190,9 +196,9 @@ class BackupWorker(object):
 
     def execute_cmd(self, cmd):
         if self.use_local and self.use_sudo:
-            return local('sudo ' + cmd)
+            return nice_local('sudo ' + cmd, nice=self.nice)
         elif self.use_local:
-            return local(cmd)
+            return nice_local(cmd, nice=self.nice)
         elif self.use_sudo:
             return sudo(cmd)
         else:

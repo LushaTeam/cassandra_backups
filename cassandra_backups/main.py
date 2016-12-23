@@ -67,7 +67,8 @@ def run_backup(args):
         exclude_tables=args.exclude_tables,
         reduced_redundancy=args.reduced_redundancy,
         rate_limit=args.rate_limit,
-        quiet=args.quiet
+        quiet=args.quiet,
+        nice=int(args.nice)
     )
     if create_snapshot:
         logging.info("Make a new snapshot")
@@ -130,7 +131,8 @@ def restore_backup(args):
                            snapshot=snapshot,
                            cassandra_tools_bin_dir=args.cassandra_tools_bin_dir,
                            restore_dir=args.restore_dir,
-                           use_sudo=args.use_sudo)
+                           use_sudo=args.use_sudo,
+                           use_local=args.use_local)
 
     worker.restore(args.keyspace)
 
@@ -255,6 +257,11 @@ def main():
         help="Set pv in quiet mode when using --rate-limit. "
              "Useful when called by a script.")
 
+    backup_parser.add_argument(
+        '--nice',
+        default=0,
+        help="Nice argument for process to prioritize CPU and IO workload (only with --use-local) ")
+
     # restore snapshot arguments
     restore_parser = subparsers.add_parser(
         'restore', help="Restores a snapshot")
@@ -277,6 +284,11 @@ def main():
         '--use-sudo',
         default=False,
         help="Use sudo to restore the backup")
+
+    restore_parser.add_argument(
+        '--use-local',
+        default=False,
+        help="Fetch a backup locally.")
 
     restore_parser.add_argument(
         '--sudo-user',

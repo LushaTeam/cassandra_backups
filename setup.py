@@ -8,7 +8,8 @@ install_requires = [
     'argparse',
     'fabric',
     'boto>=2.29.1',
-    'pyyaml'
+    'pyyaml',
+    'cryptography'
 ]
 
 setup(

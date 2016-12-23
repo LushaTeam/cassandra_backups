@@ -443,6 +443,11 @@ def main():
         if args.rate_limit > 0:
             check_pv()
 
+        if args.aws_access_key_id == 'None':
+            args.aws_access_key_id = None
+        if args.aws_secret_access_key == 'None':
+            args.aws_secret_access_key = None
+
         put_from_manifest(
             args.s3_bucket_name,
             get_s3_connection_host(args.s3_bucket_region),
@@ -460,7 +465,12 @@ def main():
         )
 
     if subcommand == 'fetch':
-        #check_lzop()
+
+        if args.aws_access_key_id == 'None':
+            args.aws_access_key_id = None
+        if args.aws_secret_access_key == 'None':
+            args.aws_secret_access_key = None
+
         local_restore(args.keyspace,
                       args.snapshot_path,
                       args.aws_access_key_id,

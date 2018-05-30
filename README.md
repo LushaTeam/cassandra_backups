@@ -55,7 +55,7 @@ have the same owner and permissions as the original data you backed up.
 Install
 =======
 
-`pip install cassandra_backups`
+`pip install git+https://github.com/LushaTeam/cassandra_backups.git`
 
 It needs to be installed in your local (where you will run the command) and in all
 the Cassandra nodes.

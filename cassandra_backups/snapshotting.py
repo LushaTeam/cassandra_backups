@@ -37,7 +37,7 @@ class Snapshot(object):
     incremental backups much easier
     """
 
-    SNAPSHOT_TIMESTAMP_FORMAT = '%Y%m%d'
+    SNAPSHOT_TIMESTAMP_FORMAT = '%Y-%m-%d_%H-%M-%S'
 
     def __init__(self, base_path, s3_bucket, hosts, keyspaces, table):
         self.s3_bucket = s3_bucket
